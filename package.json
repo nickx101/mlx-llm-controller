@@ -1,0 +1,43 @@
+{
+  "name": "mlx-llm-controller",
+  "version": "1.0.0",
+  "description": "MLX Large Language Model controller with precision parameter tuning and GPU optimization",
+  "main": "start_mlx_frontend.py",
+  "scripts": {
+    "start": "python3 start_mlx_frontend.py",
+    "optimize": "python3 scripts/optimize_mlx_gpu.py",
+    "test": "python3 test_system.py",
+    "download": "python3 scripts/download_model.py"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/mlx-llm-controller.git"
+  },
+  "keywords": [
+    "mlx",
+    "llm",
+    "apple-silicon",
+    "metal",
+    "language-model",
+    "gpu-optimization",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "machine-learning"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yourusername/mlx-llm-controller/issues"
+  },
+  "homepage": "https://github.com/yourusername/mlx-llm-controller#readme",
+  "engines": {
+    "python": ">=3.9.0"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ]
+}

@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLX LLM Controller</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            min-height: 100vh;
+        }
+        
+        .panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .controls-panel {
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+        
+        .chat-panel {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #4a5568;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        
+        h2 {
+            color: #2d3748;
+            margin-bottom: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+        
+        .model-section {
+            margin-bottom: 24px;
+        }
+        
+        .model-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding: 12px;
+            background: #f7fafc;
+            border-radius: 8px;
+            border-left: 4px solid #48bb78;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #48bb78;
+        }
+        
+        .status-dot.disconnected {
+            background: #f56565;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #4a5568;
+            font-size: 14px;
+        }
+        
+        .param-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .param-value {
+            background: #e2e8f0;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 12px;
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        select, input, textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.2s;
+            background: white;
+        }
+        
+        select:focus, input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .range-input {
+            position: relative;
+        }
+        
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        
+        input[type="range"]::-webkit-slider-track {
+            background: #e2e8f0;
+            height: 4px;
+            border-radius: 2px;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            background: #667eea;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+        }
+        
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        button:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .button-group button {
+            flex: 1;
+        }
+        
+        .secondary-btn {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+        
+        .secondary-btn:hover {
+            background: #cbd5e0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 600px;
+        }
+        
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            padding: 16px;
+            background: #f7fafc;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .message {
+            margin-bottom: 16px;
+            padding: 16px;
+            border-radius: 12px;
+            max-width: 80%;
+        }
+        
+        .message.user {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+        
+        .message.assistant {
+            background: white;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        
+        .message.system {
+            background: #fed7d7;
+            border: 1px solid #fc8181;
+            color: #742a2a;
+            text-align: center;
+            max-width: 100%;
+        }
+        
+        .message-content {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .input-area {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        
+        .input-area textarea {
+            flex: 1;
+            min-height: 60px;
+            max-height: 120px;
+            resize: vertical;
+        }
+        
+        .input-area button {
+            width: auto;
+            padding: 12px 20px;
+            min-width: 80px;
+        }
+        
+        .stop-sequences {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .stop-sequence-input {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .stop-sequence-input input {
+            flex: 1;
+        }
+        
+        .remove-btn {
+            background: #f56565;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            width: auto;
+            min-width: auto;
+        }
+        
+        .add-btn {
+            background: #48bb78;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            width: auto;
+            margin-top: 8px;
+        }
+        
+        .generation-info {
+            background: #e6fffa;
+            border: 1px solid #81e6d9;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+            font-size: 12px;
+            color: #234e52;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .collapsible {
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .collapsible::after {
+            content: '▼';
+            float: right;
+            transition: transform 0.2s;
+        }
+        
+        .collapsible.collapsed::after {
+            transform: rotate(-90deg);
+        }
+        
+        .collapsible-content {
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        
+        .collapsible-content.collapsed {
+            max-height: 0;
+        }
+        
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            
+            .controls-panel {
+                position: static;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="panel controls-panel">
+            <h2>MLX LLM Controller</h2>
+            
+            <div class="model-section">
+                <h2 class="collapsible" onclick="toggleSection('model-controls')">Model Controls</h2>
+                <div id="model-controls" class="collapsible-content">
+                    <div class="model-status">
+                        <div class="status-dot" id="status-dot"></div>
+                        <span id="model-status">No model loaded</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="model-select">Select Model:</label>
+                        <select id="model-select">
+                            <option value="">Loading models...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button onclick="loadModel()">Load Model</button>
+                        <button class="secondary-btn" onclick="unloadModel()">Unload</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <h2 class="collapsible" onclick="toggleSection('basic-params')">Basic Parameters</h2>
+                <div id="basic-params" class="collapsible-content">
+                    <div class="form-group">
+                        <div class="param-header">
+                            <label for="temperature">Temperature:</label>
+                            <span class="param-value" id="temperature-value">0.70</span>
+                        </div>
+                        <input type="range" id="temperature" min="0" max="2" step="0.01" value="0.7" oninput="updateParamValue('temperature')">
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="param-header">
+                            <label for="top-p">Top-P:</label>
+                            <span class="param-value" id="top-p-value">0.90</span>
+                        </div>
+                        <input type="range" id="top-p" min="0" max="1" step="0.01" value="0.9" oninput="updateParamValue('top-p')">
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="param-header">
+                            <label for="top-k">Top-K:</label>
+                            <span class="param-value" id="top-k-value">50</span>
+                        </div>
+                        <input type="range" id="top-k" min="0" max="200" step="1" value="50" oninput="updateParamValue('top-k')">
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="param-header">
+                            <label for="max-length">Max Length:</label>
+                            <span class="param-value" id="max-length-value">512</span>
+                        </div>
+                        <input type="range" id="max-length" min="1" max="2048" step="1" value="512" oninput="updateParamValue('max-length')">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <h2 class="collapsible collapsed" onclick="toggleSection('advanced-params')">Advanced Parameters</h2>
+                <div id="advanced-params" class="collapsible-content collapsed">
+                    <div style="background: #fef7cd; border: 1px solid #f6d55c; padding: 8px; border-radius: 6px; margin-bottom: 12px; font-size: 12px; color: #744210;">
+                        ⚠️ Note: Frequency/Presence/Repetition penalties are UI controls only in this version. Core sampling (Temperature, Top-P, Top-K) works fully.
+                    </div>
+                    <div class="form-group">
+                        <div class="param-header">
+                            <label for="frequency-penalty">Frequency Penalty:</label>
+                            <span class="param-value" id="frequency-penalty-value">0.00</span>
+                        </div>
+                        <input type="range" id="frequency-penalty" min="0" max="2" step="0.01" value="0" oninput="updateParamValue('frequency-penalty')">
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="param-header">
+                            <label for="presence-penalty">Presence Penalty:</label>
+                            <span class="param-value" id="presence-penalty-value">0.00</span>
+                        </div>
+                        <input type="range" id="presence-penalty" min="0" max="2" step="0.01" value="0" oninput="updateParamValue('presence-penalty')">
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="param-header">
+                            <label for="repetition-penalty">Repetition Penalty:</label>
+                            <span class="param-value" id="repetition-penalty-value">1.05</span>
+                        </div>
+                        <input type="range" id="repetition-penalty" min="1" max="2" step="0.01" value="1.05" oninput="updateParamValue('repetition-penalty')">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Stop Sequences:</label>
+                        <div class="stop-sequences" id="stop-sequences">
+                            <!-- Stop sequences will be added dynamically -->
+                        </div>
+                        <button class="add-btn" onclick="addStopSequence()">+ Add Stop Sequence</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="stream-mode" style="width: auto; margin-right: 8px;">
+                    Stream Response
+                </label>
+            </div>
+        </div>
+        
+        <div class="panel chat-panel">
+            <h1>Chat Interface</h1>
+            
+            <div class="chat-container">
+                <div class="messages" id="messages">
+                    <div class="message system">
+                        <div class="message-content">MLX LLM Controller ready. Load a model to start chatting.</div>
+                    </div>
+                </div>
+                
+                <div class="input-area">
+                    <textarea id="user-input" placeholder="Type your message here..." rows="3"></textarea>
+                    <button onclick="sendMessage()" id="send-btn">Send</button>
+                </div>
+                
+                <div class="generation-info" id="generation-info" style="display: none;">
+                    <!-- Generation info will be displayed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>

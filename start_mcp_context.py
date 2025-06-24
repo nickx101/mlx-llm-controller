@@ -75,6 +75,7 @@ def main():
     parser.add_argument("--config", default="mcp_config.json", help="Config file path")
     parser.add_argument("--db-path", help="Override database path")
     parser.add_argument("--llm-port", type=int, help="Override LLM port")
+    parser.add_argument("--api-port", type=int, default=8002, help="HTTP API server port for routing control")
     parser.add_argument("--setup", action="store_true", help="Run interactive setup")
     parser.add_argument("--transport", choices=["stdio", "sse"], default="stdio", help="Transport method")
     
@@ -113,6 +114,7 @@ def main():
     print(f"\n📊 Context Server Configuration:")
     print(f"   Database: {db_path}")
     print(f"   LLM Port: {llm_port}")
+    print(f"   API Port: {args.api_port}")
     print(f"   Transport: {args.transport}")
     
     # Create database directory
@@ -129,6 +131,7 @@ def main():
         "mcp_context_server.py",
         "--db-path", db_path,
         "--llm-port", str(llm_port),
+        "--api-port", str(args.api_port),
         "--transport", args.transport
     ]
     

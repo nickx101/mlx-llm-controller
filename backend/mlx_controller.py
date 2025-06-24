@@ -180,6 +180,29 @@ class MLXController:
             "model_type": type(self.model).__name__ if self.model else None
         }
     
+    def get_available_models(self) -> Dict[str, Any]:
+        """Return list of available models"""
+        common_models = [
+            "mlx-community/Qwen2.5-0.5B-Instruct-4bit",
+            "mlx-community/Qwen2.5-1.5B-Instruct-4bit", 
+            "mlx-community/Qwen2.5-3B-Instruct-4bit",
+            "mlx-community/DeepSeek-R1-0528-Qwen3-8B-4bit",
+            "mlx-community/deepseek-coder-1.3b-instruct-mlx",
+            "mlx-community/deepseek-coder-6.7b-instruct-hf-4bit-mlx",
+            "mlx-community/Mistral-7B-Instruct-v0.3-4bit",
+            "mlx-community/Llama-3.2-1B-Instruct-4bit",
+            "mlx-community/Llama-3.2-3B-Instruct-4bit",
+            "mlx-community/gemma-2-2b-it-4bit",
+            "mlx-community/Phi-3.5-mini-instruct-4bit",
+            "microsoft/Phi-3.5-mini-instruct"
+        ]
+        
+        return {
+            "available_models": common_models,
+            "current_model": self.model_name,
+            "model_loaded": self.model_loaded
+        }
+    
     def _prepare_prompt(self, messages: List[Dict[str, str]]) -> str:
         if not self.tokenizer:
             raise MLXControllerError("No tokenizer loaded")

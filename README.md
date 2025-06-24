@@ -51,8 +51,11 @@ pip install mlx mlx-lm flask flask-cors huggingface_hub requests
 # Download a model (optional)
 python scripts/download_model.py "mlx-community/Qwen2.5-0.5B-Instruct-4bit"
 
-# Start the system
+# Start the web interface
 python start_mlx_frontend.py
+
+# OR start MCP control system
+python start_mcp.py
 ```
 
 ## 🎯 One-Click Optimization
@@ -243,6 +246,55 @@ python final_test.py           # Comprehensive validation
 
 ### Customizing Parameters
 Edit `backend/mlx_controller.py` `GenerationParams` class to add new parameters or modify validation ranges.
+
+## 🔗 MCP (Model Context Protocol) Control
+
+### What is MCP Control?
+MCP provides a standardized interface to control the MLX LLM system through multiple methods:
+
+### 🌐 Web Control Interface
+```bash
+python start_mcp.py                    # Start MCP system + web interface
+# Opens http://localhost:8001 with:
+```
+- **Visual model management** with dropdown selection
+- **Parameter sliders** with real-time updates  
+- **Interactive chat** with conversation history
+- **System monitoring** and health checks
+
+### 💻 Command Line Control
+```bash
+python mcp_control.py --chat           # Interactive chat session
+python mcp_control.py models           # List available models
+python mcp_control.py load --model "mlx-community/Qwen2.5-1.5B-Instruct-4bit"
+python mcp_control.py generate --prompt "Explain quantum computing" --temperature 0.7
+python mcp_control.py health           # System health check
+```
+
+### 🐍 Python API Control
+```python
+from mcp_control import MCPController
+
+# Initialize controller
+controller = MCPController()
+
+# Interactive session
+await controller.chat_session(temperature=0.7, max_length=512)
+
+# Direct control
+models = await controller.list_models()
+await controller.load_model(models[0]['id'])
+response = await controller.generate_text("Explain AI", temperature=0.5)
+```
+
+### 🔌 REST API Endpoints
+```bash
+GET  /mcp/models                       # List available models
+POST /mcp/models/load                  # Load specific model
+POST /mcp/generate                     # Generate text
+GET  /mcp/health                       # System health
+POST /mcp/optimize                     # GPU optimization
+```
 
 ## 📱 Mobile Support
 

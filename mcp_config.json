@@ -1,0 +1,26 @@
+{
+  "server": {
+    "name": "mcp-context-server",
+    "version": "1.0.0",
+    "description": "Personal context management server for MLX LLM"
+  },
+  "database": {
+    "path": "./context_data/conversations.db",
+    "backup_interval": 3600
+  },
+  "llm": {
+    "port": 8000,
+    "host": "localhost",
+    "timeout": 30
+  },
+  "context": {
+    "default_window_size": 10,
+    "max_injections": 50,
+    "auto_save": true
+  },
+  "personal": {
+    "user_name": "Aura",
+    "study_mode": true,
+    "research_focus": true
+  }
+}

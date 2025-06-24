@@ -181,7 +181,7 @@ class MLXController:
         }
     
     def get_available_models(self) -> Dict[str, Any]:
-        """Return list of available models"""
+        """Return list of available models - exact copy from working v1"""
         common_models = [
             "mlx-community/Qwen2.5-0.5B-Instruct-4bit",
             "mlx-community/Qwen2.5-1.5B-Instruct-4bit", 

@@ -60,13 +60,27 @@ class StandaloneMLXController:
         @self.app.route('/models', methods=['GET'])
         def list_models():
             """List available models"""
-            try:
-                result = self.mlx_controller.get_available_models()
-                logger.info(f"Models result: {result}")
-                return jsonify(result)
-            except Exception as e:
-                logger.error(f"Error in /models route: {e}")
-                return jsonify({"error": str(e)}), 500
+            # Direct implementation to avoid method call issues
+            common_models = [
+                "mlx-community/Qwen2.5-0.5B-Instruct-4bit",
+                "mlx-community/Qwen2.5-1.5B-Instruct-4bit", 
+                "mlx-community/Qwen2.5-3B-Instruct-4bit",
+                "mlx-community/DeepSeek-R1-0528-Qwen3-8B-4bit",
+                "mlx-community/deepseek-coder-1.3b-instruct-mlx",
+                "mlx-community/deepseek-coder-6.7b-instruct-hf-4bit-mlx",
+                "mlx-community/Mistral-7B-Instruct-v0.3-4bit",
+                "mlx-community/Llama-3.2-1B-Instruct-4bit",
+                "mlx-community/Llama-3.2-3B-Instruct-4bit",
+                "mlx-community/gemma-2-2b-it-4bit",
+                "mlx-community/Phi-3.5-mini-instruct-4bit",
+                "microsoft/Phi-3.5-mini-instruct"
+            ]
+            
+            return jsonify({
+                "available_models": common_models,
+                "current_model": self.mlx_controller.model_name,
+                "model_loaded": self.mlx_controller.model_loaded
+            })
         
         @self.app.route('/models/load', methods=['POST'])
         def load_model():

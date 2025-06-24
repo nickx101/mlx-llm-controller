@@ -9,6 +9,7 @@ import json
 import logging
 import sqlite3
 import os
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
@@ -16,6 +17,10 @@ from dataclasses import dataclass, asdict
 import argparse
 import aiohttp
 import hashlib
+import requests
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import threading
 
 # MCP Protocol Types following Anthropic specification
 @dataclass
@@ -39,6 +44,14 @@ class MCPPrompt:
     name: str
     description: str
     arguments: Optional[List[Dict[str, Any]]] = None
+
+@dataclass
+class AIRoutingConfig:
+    """Configuration for AI controller routing"""
+    ai_enabled: bool = False
+    ai_host: str = "localhost"
+    ai_port: int = 8000
+    timeout: int = 10
 
 class ContextDatabase:
     """SQLite database for context persistence"""
@@ -163,6 +176,7 @@ class MCPContextServer:
         self.db = ContextDatabase(db_path)
         self.llm_port = llm_port
         self.llm_base_url = f"http://localhost:{llm_port}"
+        self.routing = AIRoutingConfig(ai_port=llm_port)
         
         # MCP Server Info
         self.server_info = {
@@ -187,6 +201,7 @@ class MCPContextServer:
         self.logger.info(f"MCP Context Server initialized")
         self.logger.info(f"Database: {db_path}")
         self.logger.info(f"LLM Port: {llm_port}")
+        self.logger.info(f"🔗 Context routing: {'enabled' if self.routing.ai_enabled else 'disabled'} (use /routing/toggle to enable)")
     
     # MCP Protocol Methods
     async def handle_initialize(self, params: Dict) -> Dict:
@@ -459,6 +474,102 @@ class MCPContextServer:
             error_msg = f"Failed to connect to LLM: {str(e)}"
             self.logger.error(error_msg)
             return error_msg
+    
+    def _test_ai_connection(self) -> bool:
+        """Test connection to AI controller"""
+        try:
+            response = requests.get(
+                f"http://{self.routing.ai_host}:{self.routing.ai_port}/health",
+                timeout=self.routing.timeout
+            )
+            return response.status_code == 200
+        except Exception as e:
+            self.logger.warning(f"AI connection test failed: {e}")
+            return False
+    
+    def setup_http_api(self, port: int = 8002):
+        """Setup HTTP API for configuration and routing control"""
+        app = Flask(__name__)
+        CORS(app)
+        
+        @app.route('/health', methods=['GET'])
+        def health_check():
+            """Health check with routing status"""
+            return jsonify({
+                "status": "healthy",
+                "timestamp": time.time(),
+                "mcp_server": "active",
+                "routing": {
+                    "ai_enabled": self.routing.ai_enabled,
+                    "ai_endpoint": f"http://{self.routing.ai_host}:{self.routing.ai_port}" if self.routing.ai_enabled else None
+                }
+            })
+        
+        @app.route('/routing/toggle', methods=['POST'])
+        def toggle_routing():
+            """Toggle AI controller routing"""
+            data = request.get_json() or {}
+            enabled = data.get('enabled')
+            
+            if enabled is not None:
+                self.routing.ai_enabled = enabled
+            else:
+                self.routing.ai_enabled = not self.routing.ai_enabled
+            
+            # Test connection if enabling
+            if self.routing.ai_enabled:
+                if not self._test_ai_connection():
+                    self.routing.ai_enabled = False
+                    return jsonify({
+                        "error": "Cannot connect to AI controller",
+                        "ai_enabled": False
+                    }), 503
+            
+            return jsonify({
+                "ai_enabled": self.routing.ai_enabled,
+                "ai_endpoint": f"http://{self.routing.ai_host}:{self.routing.ai_port}" if self.routing.ai_enabled else None,
+                "message": f"AI routing {'enabled' if self.routing.ai_enabled else 'disabled'}"
+            })
+        
+        @app.route('/routing/config', methods=['GET', 'POST'])
+        def routing_config():
+            """Get or update routing configuration"""
+            if request.method == 'GET':
+                return jsonify(asdict(self.routing))
+            
+            data = request.get_json()
+            if data:
+                if 'ai_host' in data:
+                    self.routing.ai_host = data['ai_host']
+                if 'ai_port' in data:
+                    self.routing.ai_port = data['ai_port']
+                if 'timeout' in data:
+                    self.routing.timeout = data['timeout']
+            
+            return jsonify(asdict(self.routing))
+        
+        @app.route('/routing/status', methods=['GET'])
+        def routing_status():
+            """Check routing status and connection"""
+            status = {
+                "enabled": self.routing.ai_enabled,
+                "config": asdict(self.routing),
+                "connection_test": None
+            }
+            
+            if self.routing.ai_enabled:
+                status["connection_test"] = self._test_ai_connection()
+            
+            return jsonify(status)
+        
+        # Start HTTP API server in separate thread
+        def run_api():
+            app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+        
+        api_thread = threading.Thread(target=run_api, daemon=True)
+        api_thread.start()
+        self.logger.info(f"🌐 HTTP API started on port {port}")
+        self.logger.info(f"📡 Routing endpoints: /routing/toggle, /routing/status, /routing/config")
 
 async def main():
     """Main entry point"""
@@ -469,11 +580,16 @@ async def main():
                        help="LLM server port")
     parser.add_argument("--transport", choices=["stdio", "sse"], default="stdio",
                        help="Transport method")
+    parser.add_argument("--api-port", type=int, default=8002,
+                       help="HTTP API server port for routing control")
     
     args = parser.parse_args()
     
     # Create context server
     server = MCPContextServer(args.db_path, args.llm_port)
+    
+    # Start HTTP API for routing control
+    server.setup_http_api(args.api_port)
     
     if args.transport == "stdio":
         # STDIO transport for MCP clients

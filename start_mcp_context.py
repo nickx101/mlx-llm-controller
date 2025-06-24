@@ -119,7 +119,7 @@ def main():
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     
     print(f"\n🚀 Starting MCP Context Server...")
-    print(f"   Use with Claude Desktop or any MCP client")
+    print(f"   Use with any MCP client")
     print(f"   Context management for research & study")
     
     # Start the server

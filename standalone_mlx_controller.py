@@ -60,7 +60,13 @@ class StandaloneMLXController:
         @self.app.route('/models', methods=['GET'])
         def list_models():
             """List available models"""
-            return jsonify(self.mlx_controller.get_available_models())
+            try:
+                result = self.mlx_controller.get_available_models()
+                logger.info(f"Models result: {result}")
+                return jsonify(result)
+            except Exception as e:
+                logger.error(f"Error in /models route: {e}")
+                return jsonify({"error": str(e)}), 500
         
         @self.app.route('/models/load', methods=['POST'])
         def load_model():

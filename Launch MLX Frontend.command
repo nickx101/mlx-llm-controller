@@ -42,14 +42,13 @@ mkdir -p context_data
 echo ""
 echo "🎛️  MLX LLM Controller Options:"
 echo "1. Standalone MLX AI Controller (recommended)"
-echo "2. Standalone Context Database"
+echo "2. MCP Context Server (Anthropic spec)"
 echo "3. Original MLX Frontend"
-echo "4. MCP Context Server"
-echo "5. GPU Optimization"
-echo "6. Run Tests"
+echo "4. GPU Optimization"
+echo "5. Run Tests"
 echo ""
 
-read -p "Select option (1-6): " option
+read -p "Select option (1-5): " option
 
 case $option in
     1)
@@ -78,25 +77,22 @@ case $option in
         ;;
     2)
         echo ""
-        echo "🗄️ Starting Standalone Context Database..."
+        echo "🔗 Starting MCP Context Server..."
         echo ""
         echo "✨ Features:"
-        echo "   💾 Conversation persistence (port 8001)"
-        echo "   🧠 Context injection management"
-        echo "   🔗 Optional AI controller routing"
+        echo "   📡 Anthropic MCP specification compliant"
+        echo "   💾 Context database storage and retrieval"
+        echo "   🔌 Standalone server (configurable port)"
+        echo "   🗄️ Conversation and context management"
         echo ""
-        echo "📡 Key Endpoints:"
-        echo "   POST /conversations - Create conversations"
-        echo "   POST /conversations/<id>/inject - Add context"
-        echo "   POST /routing/toggle - Enable/disable AI routing"
-        echo ""
+        echo "📡 Server will start on configured port (default: 8002)"
         echo "Press Ctrl+C to stop"
         echo ""
         
-        if [ -f "standalone_context_database.py" ]; then
-            python3 standalone_context_database.py
+        if [ -f "start_mcp_context.py" ]; then
+            python3 start_mcp_context.py
         else
-            echo "❌ Standalone context database not found"
+            echo "❌ MCP Context Server files not found"
         fi
         ;;
     3)
@@ -133,19 +129,6 @@ case $option in
         ;;
     4)
         echo ""
-        echo "🔗 Starting MCP Context Server..."
-        echo "   Standalone context management"
-        echo "   Follows Anthropic's MCP specification"
-        echo ""
-        
-        if [ -f "start_mcp_context.py" ]; then
-            python3 start_mcp_context.py
-        else
-            echo "❌ MCP Context Server files not found"
-        fi
-        ;;
-    5)
-        echo ""
         echo "⚡ Running GPU Optimization..."
         echo "   27.5GB GPU memory dedication"
         echo "   Metal Performance optimization"
@@ -157,7 +140,7 @@ case $option in
             echo "❌ GPU optimization script not found"
         fi
         ;;
-    6)
+    5)
         echo ""
         echo "🧪 Running Tests..."
         echo ""

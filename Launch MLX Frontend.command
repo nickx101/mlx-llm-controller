@@ -44,11 +44,12 @@ echo "🎛️  MLX LLM Controller Options:"
 echo "1. Standalone MLX AI Controller (recommended)"
 echo "2. Standalone Context Database"
 echo "3. Original MLX Frontend"
-echo "4. GPU Optimization"
-echo "5. Run Tests"
+echo "4. MCP Context Server"
+echo "5. GPU Optimization"
+echo "6. Run Tests"
 echo ""
 
-read -p "Select option (1-5): " option
+read -p "Select option (1-6): " option
 
 case $option in
     1)
@@ -130,7 +131,7 @@ case $option in
         
         python3 start_mlx_frontend.py
         ;;
-    3)
+    4)
         echo ""
         echo "🔗 Starting MCP Context Server..."
         echo "   Standalone context management"
@@ -143,7 +144,7 @@ case $option in
             echo "❌ MCP Context Server files not found"
         fi
         ;;
-    4)
+    5)
         echo ""
         echo "⚡ Running GPU Optimization..."
         echo "   27.5GB GPU memory dedication"
@@ -156,7 +157,7 @@ case $option in
             echo "❌ GPU optimization script not found"
         fi
         ;;
-    5)
+    6)
         echo ""
         echo "🧪 Running Tests..."
         echo ""

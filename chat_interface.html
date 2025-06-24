@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLX AI Chat</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a1a; color: #fff; height: 100vh; }
+        .container { max-width: 1200px; margin: 0 auto; height: 100vh; display: flex; }
+        .chat-panel { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #333; }
+        .controls-panel { width: 300px; padding: 20px; background: #2a2a2a; }
+        .chat-header { padding: 20px; background: #333; border-bottom: 1px solid #444; }
+        .chat-messages { flex: 1; padding: 20px; overflow-y: auto; }
+        .chat-input { padding: 20px; border-top: 1px solid #333; }
+        .message { margin-bottom: 15px; padding: 12px; border-radius: 8px; }
+        .user-message { background: #007AFF; margin-left: 60px; }
+        .assistant-message { background: #333; margin-right: 60px; }
+        .input-box { width: 100%; padding: 12px; border: 1px solid #555; border-radius: 6px; background: #333; color: #fff; resize: vertical; min-height: 60px; }
+        .send-btn { margin-top: 10px; padding: 12px 24px; background: #007AFF; color: white; border: none; border-radius: 6px; cursor: pointer; }
+        .send-btn:hover { background: #0056CC; }
+        .control-group { margin-bottom: 20px; }
+        .control-label { display: block; margin-bottom: 5px; font-weight: 500; }
+        .control-input { width: 100%; padding: 8px; border: 1px solid #555; border-radius: 4px; background: #333; color: #fff; }
+        .status { padding: 10px; text-align: center; font-size: 14px; }
+        .status.connected { background: #28a745; }
+        .status.disconnected { background: #dc3545; }
+        h3 { margin-bottom: 15px; color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chat-panel">
+            <div class="chat-header">
+                <h2>MLX AI Chat</h2>
+                <div id="status" class="status disconnected">Connecting...</div>
+            </div>
+            <div class="chat-messages" id="messages"></div>
+            <div class="chat-input">
+                <textarea id="messageInput" class="input-box" placeholder="Type your message..."></textarea>
+                <button id="sendBtn" class="send-btn">Send</button>
+            </div>
+        </div>
+        <div class="controls-panel">
+            <h3>AI Controls</h3>
+            <div class="control-group">
+                <label class="control-label">Temperature</label>
+                <input type="range" id="temperature" class="control-input" min="0" max="2" step="0.1" value="0.7">
+                <span id="tempValue">0.7</span>
+            </div>
+            <div class="control-group">
+                <label class="control-label">Max Length</label>
+                <input type="range" id="maxLength" class="control-input" min="50" max="2048" step="50" value="512">
+                <span id="maxValue">512</span>
+            </div>
+            <div class="control-group">
+                <label class="control-label">Top P</label>
+                <input type="range" id="topP" class="control-input" min="0" max="1" step="0.05" value="0.9">
+                <span id="topPValue">0.9</span>
+            </div>
+            <div class="control-group">
+                <label class="control-label">Top K</label>
+                <input type="range" id="topK" class="control-input" min="1" max="100" step="1" value="40">
+                <span id="topKValue">40</span>
+            </div>
+            <div class="control-group">
+                <label class="control-label">Frequency Penalty</label>
+                <input type="range" id="freqPenalty" class="control-input" min="0" max="2" step="0.1" value="0">
+                <span id="freqValue">0</span>
+            </div>
+            <div class="control-group">
+                <label class="control-label">Presence Penalty</label>
+                <input type="range" id="presPenalty" class="control-input" min="0" max="2" step="0.1" value="0">
+                <span id="presValue">0</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        const messages = [];
+        
+        // Elements
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const status = document.getElementById('status');
+        
+        // Controls
+        const temperature = document.getElementById('temperature');
+        const maxLength = document.getElementById('maxLength');
+        const topP = document.getElementById('topP');
+        const topK = document.getElementById('topK');
+        const freqPenalty = document.getElementById('freqPenalty');
+        const presPenalty = document.getElementById('presPenalty');
+        
+        // Update display values
+        temperature.oninput = () => document.getElementById('tempValue').textContent = temperature.value;
+        maxLength.oninput = () => document.getElementById('maxValue').textContent = maxLength.value;
+        topP.oninput = () => document.getElementById('topPValue').textContent = topP.value;
+        topK.oninput = () => document.getElementById('topKValue').textContent = topK.value;
+        freqPenalty.oninput = () => document.getElementById('freqValue').textContent = freqPenalty.value;
+        presPenalty.oninput = () => document.getElementById('presValue').textContent = presPenalty.value;
+        
+        // Check connection
+        async function checkConnection() {
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                if (response.ok) {
+                    status.textContent = 'Connected to MLX AI';
+                    status.className = 'status connected';
+                } else {
+                    throw new Error('Not connected');
+                }
+            } catch (error) {
+                status.textContent = 'MLX AI not responding';
+                status.className = 'status disconnected';
+            }
+        }
+        
+        // Add message to chat
+        function addMessage(role, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}-message`;
+            messageDiv.textContent = content;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        // Send message
+        async function sendMessage() {
+            const content = messageInput.value.trim();
+            if (!content) return;
+            
+            addMessage('user', content);
+            messageInput.value = '';
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Sending...';
+            
+            const requestData = {
+                messages: [{ role: 'user', content: content }],
+                parameters: {
+                    temperature: parseFloat(temperature.value),
+                    max_length: parseInt(maxLength.value),
+                    top_p: parseFloat(topP.value),
+                    top_k: parseInt(topK.value),
+                    frequency_penalty: parseFloat(freqPenalty.value),
+                    presence_penalty: parseFloat(presPenalty.value)
+                }
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    addMessage('assistant', result.text || result.response || 'No response');
+                } else {
+                    addMessage('assistant', 'Error: Could not get response from AI');
+                }
+            } catch (error) {
+                addMessage('assistant', `Error: ${error.message}`);
+            }
+            
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send';
+        }
+        
+        // Event listeners
+        sendBtn.onclick = sendMessage;
+        messageInput.onkeydown = (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        };
+        
+        // Initialize
+        checkConnection();
+        setInterval(checkConnection, 30000);
+    </script>
+</body>
+</html>

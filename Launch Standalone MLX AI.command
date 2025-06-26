@@ -41,9 +41,11 @@ echo "🎛️  Standalone MLX AI Options:"
 echo "1. Start AI Controller (recommended)"
 echo "2. Configure context database routing"
 echo "3. Test AI controller"
+echo "4. Toggle Asian character filter"
+echo "5. Toggle MCP context routing"
 echo ""
 
-read -p "Select option (1-3): " option
+read -p "Select option (1-5): " option
 
 case $option in
     1)
@@ -109,6 +111,90 @@ case $option in
             echo ""
             echo "3. Routing status:"
             curl -s http://localhost:8000/routing/status | python3 -m json.tool
+        else
+            echo "❌ AI Controller not running"
+            echo "   Please start it first with option 1"
+        fi
+        ;;
+    4)
+        echo ""
+        echo "🈲 Asian Character Filter Toggle"
+        echo "==============================="
+        echo ""
+        
+        # Check if server is running
+        if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ AI Controller is running"
+            echo ""
+            
+            # Get current filter status
+            echo "📊 Current filter status:"
+            filter_status=$(curl -s http://localhost:8000/filter/asian 2>/dev/null)
+            if [ $? -eq 0 ]; then
+                echo "$filter_status" | python3 -m json.tool
+                echo ""
+                
+                read -p "Enable Asian character filter? (y/n): " enable_filter
+                case $enable_filter in
+                    [Yy]*)
+                        curl -s -X POST http://localhost:8000/filter/asian \
+                             -H "Content-Type: application/json" \
+                             -d '{"enabled": true}' | python3 -m json.tool
+                        ;;
+                    [Nn]*)
+                        curl -s -X POST http://localhost:8000/filter/asian \
+                             -H "Content-Type: application/json" \
+                             -d '{"enabled": false}' | python3 -m json.tool
+                        ;;
+                    *)
+                        echo "No changes made."
+                        ;;
+                esac
+            else
+                echo "❌ Failed to get filter status"
+            fi
+        else
+            echo "❌ AI Controller not running"
+            echo "   Please start it first with option 1"
+        fi
+        ;;
+    5)
+        echo ""
+        echo "🔗 MCP Context Routing Toggle"
+        echo "============================="
+        echo ""
+        
+        # Check if server is running
+        if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ AI Controller is running"
+            echo ""
+            
+            # Get current routing status
+            echo "📊 Current routing status:"
+            routing_status=$(curl -s http://localhost:8000/routing/status 2>/dev/null)
+            if [ $? -eq 0 ]; then
+                echo "$routing_status" | python3 -m json.tool
+                echo ""
+                
+                read -p "Enable MCP context routing? (y/n): " enable_routing
+                case $enable_routing in
+                    [Yy]*)
+                        curl -s -X POST http://localhost:8000/routing/toggle \
+                             -H "Content-Type: application/json" \
+                             -d '{"enabled": true}' | python3 -m json.tool
+                        ;;
+                    [Nn]*)
+                        curl -s -X POST http://localhost:8000/routing/toggle \
+                             -H "Content-Type: application/json" \
+                             -d '{"enabled": false}' | python3 -m json.tool
+                        ;;
+                    *)
+                        echo "No changes made."
+                        ;;
+                esac
+            else
+                echo "❌ Failed to get routing status"
+            fi
         else
             echo "❌ AI Controller not running"
             echo "   Please start it first with option 1"

@@ -14,7 +14,7 @@ class MLXController {
         await this.checkServerStatus();
         this.setupEventListeners();
         this.addDefaultStopSequences();
-        this.updateAllParamValues();
+        // Don't call updateAllParamValues here - will be called after global setup
     }
     
     setupEventListeners() {
@@ -124,6 +124,10 @@ class MLXController {
                 this.showSystemMessage(`✅ Model loaded successfully: ${selectedModel}`);
                 this.currentModel = selectedModel;
                 this.updateModelStatus({ loaded: true, model_name: selectedModel });
+                // Clear conversation history when new model is loaded
+                this.conversationHistory = [];
+                document.getElementById('messages').innerHTML = '';
+                this.showSystemMessage('Conversation history cleared for new model.');
             } else {
                 this.showSystemMessage(`❌ Failed to load model: ${data.error || 'Unknown error'}`);
             }
@@ -150,6 +154,9 @@ class MLXController {
                 this.showSystemMessage('Model unloaded successfully.');
                 this.currentModel = null;
                 this.updateModelStatus({ loaded: false });
+                // Clear conversation history when model is unloaded
+                this.conversationHistory = [];
+                document.getElementById('messages').innerHTML = '';
             } else {
                 this.showSystemMessage(`Failed to unload model: ${data.error || 'Unknown error'}`);
             }
@@ -279,13 +286,7 @@ class MLXController {
     }
     
     updateAllParamValues() {
-        this.updateParamValue('temperature');
-        this.updateParamValue('top-p');
-        this.updateParamValue('top-k');
-        this.updateParamValue('max-length');
-        this.updateParamValue('frequency-penalty');
-        this.updateParamValue('presence-penalty');
-        this.updateParamValue('repetition-penalty');
+        // Empty method - parameter values are updated after global initialization
     }
     
     addDefaultStopSequences() {
@@ -314,11 +315,72 @@ class MLXController {
 
 // UI Helper Functions
 function updateParamValue(paramName) {
+    console.log(`📊 updateParamValue called for: ${paramName}`);
     const input = document.getElementById(paramName);
     const valueSpan = document.getElementById(`${paramName}-value`);
     if (input && valueSpan) {
         const value = parseFloat(input.value);
         valueSpan.textContent = value.toFixed(2);
+        console.log(`📊 Updated UI value: ${paramName} = ${value}`);
+        
+        // Sync parameter to backend for other applications
+        console.log(`📊 About to sync to backend...`);
+        syncParameterToBackend(paramName, value);
+    } else {
+        console.error(`❌ Could not find elements for ${paramName}`);
+        console.log(`Input element:`, input);
+        console.log(`Value span:`, valueSpan);
+    }
+}
+
+async function syncParameterToBackend(paramName, value) {
+    try {
+        console.log(`🔄 syncParameterToBackend called with: ${paramName} = ${value}`);
+        
+        // Check if mlxController exists
+        if (!window.mlxController) {
+            console.error(`❌ mlxController not found!`);
+            return;
+        }
+        
+        console.log(`📡 mlxController.apiBase: ${window.mlxController.apiBase}`);
+        
+        // Map UI parameter names to backend names
+        const paramMapping = {
+            'temperature': 'temperature',
+            'top-p': 'top_p',
+            'top-k': 'top_k',
+            'max-length': 'max_length',
+            'repetition-penalty': 'repetition_penalty'
+        };
+        
+        const backendParamName = paramMapping[paramName] || paramName;
+        const paramData = {};
+        paramData[backendParamName] = value;
+        
+        console.log(`🔄 Syncing ${paramName} -> ${backendParamName}: ${value}`);
+        console.log(`📡 Sending to: ${window.mlxController.apiBase}/parameters`);
+        console.log(`📦 Payload:`, paramData);
+        
+        const response = await fetch(`${window.mlxController.apiBase}/parameters`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(paramData)
+        });
+        
+        if (response.ok) {
+            console.log(`✅ Parameter ${backendParamName} synced successfully`);
+            // Show visual feedback
+            const valueSpan = document.getElementById(`${paramName}-value`);
+            if (valueSpan) {
+                valueSpan.style.color = '#48bb78';
+                setTimeout(() => { valueSpan.style.color = ''; }, 1000);
+            }
+        } else {
+            console.error('❌ Failed to sync parameter:', response.status);
+        }
+    } catch (error) {
+        console.warn('Failed to sync parameter to backend:', error);
     }
 }
 
@@ -347,8 +409,39 @@ function addStopSequence() {
     mlxController.addStopSequence();
 }
 
+// Test function you can call manually in console
+function testParameterSync() {
+    console.log('🧪 Testing parameter sync manually...');
+    updateParamValue('temperature');
+}
+
 // Initialize the controller when page loads
 let mlxController;
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 DOM loaded, initializing MLXController...');
     mlxController = new MLXController();
+    window.mlxController = mlxController; // Make it globally accessible
+    console.log('✅ MLXController initialized:', mlxController);
+    
+    // Wait for initialization to complete, then update param values
+    setTimeout(() => {
+        console.log('🔧 Updating all parameter values...');
+        updateParamValue('temperature');
+        updateParamValue('top-p');
+        updateParamValue('top-k');
+        updateParamValue('max-length');
+        updateParamValue('frequency-penalty');
+        updateParamValue('presence-penalty');
+        updateParamValue('repetition-penalty');
+    }, 100);
+    
+    // Test if updateParamValue function exists
+    console.log('🔍 updateParamValue function:', typeof updateParamValue);
+    
+    // Test slider elements
+    const tempSlider = document.getElementById('temperature');
+    console.log('🎚️ Temperature slider found:', !!tempSlider);
+    if (tempSlider) {
+        console.log('🎚️ Temperature slider oninput:', tempSlider.oninput);
+    }
 });

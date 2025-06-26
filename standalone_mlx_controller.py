@@ -36,6 +36,7 @@ class StandaloneMLXController:
     def __init__(self):
         self.mlx_controller = MLXController()
         self.routing = RoutingConfig()
+        self.current_params = GenerationParams()  # Store current parameters
         self.app = Flask(__name__)
         CORS(self.app)
         self.setup_routes()
@@ -122,9 +123,22 @@ class StandaloneMLXController:
             if not messages:
                 return jsonify({"error": "messages is required"}), 400
             
-            # Parse parameters
-            params_data = data.get('parameters', {})
-            params = GenerationParams(**params_data)
+            # Parse parameters with web interface integration
+            try:
+                # Start with current stored params from web interface
+                params_dict = self.current_params.to_dict()
+                
+                # Override with request parameters
+                params_data = data.get('parameters', {})
+                params_dict.update(params_data)
+                
+                params = GenerationParams(**params_dict)
+                
+            except Exception as e:
+                logger.error(f"Parameter integration error: {e}")
+                # Fallback to simple parsing
+                params_data = data.get('parameters', {})
+                params = GenerationParams(**params_data)
             
             # Check if context routing is enabled
             conversation_id = data.get('conversation_id')
@@ -160,6 +174,83 @@ class StandaloneMLXController:
                 
             except Exception as e:
                 logger.error(f"Generation failed: {e}")
+                return jsonify({"error": str(e)}), 500
+        
+        @self.app.route('/chat', methods=['POST'])
+        def chat():
+            """Chat endpoint - compatible with external APIs expecting /chat"""
+            data = request.get_json()
+            
+            if not data:
+                return jsonify({"error": "JSON data required"}), 400
+            
+            # Handle different message formats
+            message = data.get('message', '')
+            messages = data.get('messages', [])
+            
+            # Convert single message to messages format
+            if message and not messages:
+                messages = [{"role": "user", "content": message}]
+            elif not messages:
+                return jsonify({"error": "message or messages is required"}), 400
+            
+            # ALWAYS use web interface parameters - ignore Kitsune's hardcoded values
+            try:
+                params_dict = self.current_params.to_dict()
+                logger.info(f"🌐 WEB INTERFACE OVERRIDE: temp={params_dict.get('temperature')}, max_length={params_dict.get('max_length')}")
+                logger.info(f"🦊 Kitsune sent: max_tokens={data.get('max_tokens', 'None')}, temperature={data.get('temperature', 'None')} - IGNORING")
+                
+                params = GenerationParams(**params_dict)
+                logger.info(f"✅ USING WEB PARAMS: temp={params.temperature}, max_length={params.max_length}")
+                
+            except Exception as e:
+                logger.error(f"❌ Web parameter integration failed: {e}")
+                # Emergency fallback only
+                params = GenerationParams()
+                logger.info("⚠️ Using default parameters due to error")
+            
+            try:
+                result = self.mlx_controller.generate_text(messages, params)
+                
+                # Return in simple format for compatibility
+                return jsonify({
+                    "response": result.get('text', ''),
+                    "success": True,
+                    "model": self.mlx_controller.model_name,
+                    "generation_time": result.get('generation_time', 0)
+                })
+                
+            except Exception as e:
+                logger.error(f"Chat generation failed: {e}")
+                return jsonify({"error": str(e)}), 500
+        
+        @self.app.route('/parameters', methods=['GET'])
+        def get_parameters():
+            """Get current generation parameters"""
+            return jsonify({
+                "success": True,
+                "parameters": self.current_params.to_dict()
+            })
+        
+        @self.app.route('/parameters', methods=['POST'])
+        def set_parameters():
+            """Set generation parameters"""
+            data = request.get_json()
+            
+            if not data:
+                return jsonify({"error": "JSON data required"}), 400
+            
+            try:
+                # Update current parameters
+                for key, value in data.items():
+                    if hasattr(self.current_params, key):
+                        setattr(self.current_params, key, value)
+                
+                return jsonify({
+                    "success": True,
+                    "parameters": self.current_params.to_dict()
+                })
+            except Exception as e:
                 return jsonify({"error": str(e)}), 500
         
         @self.app.route('/generate/stream', methods=['POST'])

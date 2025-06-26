@@ -2,6 +2,7 @@ import logging
 import time
 import json
 import warnings
+import re
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Any, Generator
 import threading
@@ -45,6 +46,7 @@ class GenerationParams:
     min_p: float = 0.0
     stream: bool = False
     verbose: bool = True
+    filter_asian_chars: bool = False
     
     def __post_init__(self):
         if self.stop_sequences is None:
@@ -114,6 +116,17 @@ class CustomLogitsProcessor:
             self.context_tokens = self.context_tokens[-50:]
         
         return modified_logits
+
+def filter_asian_characters(text: str) -> str:
+    """Simple post-processing filter to remove Asian characters from generated text"""
+    # Define Asian character ranges
+    asian_pattern = r'[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af\u0e00-\u0e7f\u1000-\u109f\u1780-\u17ff]'
+    
+    # Remove Asian characters and clean up extra spaces
+    filtered_text = re.sub(asian_pattern, '', text)
+    filtered_text = re.sub(r'\s+', ' ', filtered_text).strip()
+    
+    return filtered_text
 
 class MLXController:
     def __init__(self):
@@ -207,13 +220,19 @@ class MLXController:
         if not self.tokenizer:
             raise MLXControllerError("No tokenizer loaded")
         
+        # Debug: Log the input messages
+        logger.info(f"Input messages: {messages}")
+        
         try:
             if hasattr(self.tokenizer, 'apply_chat_template'):
-                return self.tokenizer.apply_chat_template(
+                prompt = self.tokenizer.apply_chat_template(
                     messages, 
                     tokenize=False, 
                     add_generation_prompt=True
                 )
+                # Debug: Log the actual prompt being used
+                logger.info(f"Generated prompt: {prompt[:200]}...")
+                return prompt
             else:
                 prompt = ""
                 for msg in messages:
@@ -267,6 +286,10 @@ class MLXController:
                     verbose=params.verbose
                 )
                 
+                # Apply Asian character filter if requested
+                if params.filter_asian_chars:
+                    response = filter_asian_characters(response)
+                
                 generation_time = time.time() - start_time
                 
                 result = {
@@ -312,10 +335,14 @@ class MLXController:
                     token_count += 1
                     full_response += token.text
                     
+                    # Apply Asian character filter to token if requested
+                    filtered_token = filter_asian_characters(token.text) if params.filter_asian_chars else token.text
+                    filtered_full_response = filter_asian_characters(full_response) if params.filter_asian_chars else full_response
+                    
                     yield {
-                        "token": token.text,
+                        "token": filtered_token,
                         "token_count": token_count,
-                        "full_text": full_response,
+                        "full_text": filtered_full_response,
                         "finished": False
                     }
                     
@@ -325,10 +352,13 @@ class MLXController:
                 
                 generation_time = time.time() - start_time
                 
+                # Apply final filter to full response
+                final_response = filter_asian_characters(full_response) if params.filter_asian_chars else full_response
+                
                 yield {
                     "token": "",
                     "token_count": token_count,
-                    "full_text": full_response,
+                    "full_text": final_response,
                     "finished": True,
                     "generation_time": generation_time,
                     "parameters_used": params.to_dict(),
